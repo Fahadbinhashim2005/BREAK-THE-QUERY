@@ -23,14 +23,27 @@
     h1 {
       text-align: center;
       letter-spacing: 3px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .subtitle {
       text-align: center;
       color: #d6a85a;
-      margin-bottom: 25px;
+      margin-bottom: 12px;
       letter-spacing: 1px;
+    }
+
+    .meta {
+      text-align: center;
+      margin-bottom: 18px;
+      font-weight: bold;
+    }
+
+    .meta button {
+      width: auto;
+      padding: 8px 16px;
+      margin-left: 10px;
+      font-size: 14px;
     }
 
     table {
@@ -56,7 +69,7 @@
 </head>
 <body>
 
-<!-- TRANSPARENT HEADER -->
+<!-- HEADER -->
 <div class="header">
   <img src="nklogo.png" alt="Nakshatra Logo">
   <img src="SAINTGITS LOGO .png" alt="Saintgits Logo">
@@ -66,9 +79,15 @@
   <h1>👥 Registered Gangs</h1>
   <p class="subtitle">Official Outlaw Registry · Break the Query</p>
 
+  <div class="meta">
+    Total Gangs: <span id="count">0</span>
+    <button onclick="loadTeams()">🔄 Refresh</button>
+  </div>
+
   <table>
     <thead>
       <tr>
+        <th>#</th>
         <th>Outlaw No</th>
         <th>Gang Name</th>
         <th>Outlaw Leader</th>
@@ -85,20 +104,24 @@ function loadTeams() {
     .then(res => res.json())
     .then(data => {
       const body = document.getElementById("teamsBody");
+      const count = document.getElementById("count");
+
       body.innerHTML = "";
+      count.innerText = data.length;
 
       if (data.length === 0) {
         body.innerHTML = `
           <tr>
-            <td colspan="4">No gangs registered yet</td>
+            <td colspan="5">No gangs registered yet</td>
           </tr>
         `;
         return;
       }
 
-      data.forEach(t => {
+      data.forEach((t, i) => {
         body.innerHTML += `
           <tr>
+            <td>${i + 1}</td>
             <td>${t.outlawNo}</td>
             <td>${t.teamName}</td>
             <td>${t.leader}</td>
@@ -109,7 +132,7 @@ function loadTeams() {
     });
 }
 
-setInterval(loadTeams, 2000);
+/* Initial load only */
 loadTeams();
 </script>
 

@@ -1,5 +1,6 @@
 const express = require("express");
 const fs = require("fs");
+const crypto = require("crypto");
 const app = express();
 
 app.use(express.json());
@@ -16,17 +17,22 @@ let question = {
 };
 
 let showLeaderboard = false;
+let leaderboardRound = null;
 
 /* ---------------- ADMIN / COORDINATOR ---------------- */
 
 app.post("/start", (req, res) => {
-  question.text = req.body.text;
-  question.schema = req.body.schema;
-  question.duration = req.body.duration;
-  question.round = req.body.round || "round1";
-  question.startTime = Date.now();
+  question = {
+    text: req.body.text,
+    schema: req.body.schema,
+    duration: Number(req.body.duration),
+    round: req.body.round || "round1",
+    startTime: Date.now()
+  };
 
   showLeaderboard = false;
+  leaderboardRound = null;
+
   res.json({ status: "started" });
 });
 
@@ -38,20 +44,22 @@ app.post("/clear-submissions", (req, res) => {
 /* ---------------- LEADERBOARD CONTROLS ---------------- */
 
 app.post("/show-leaderboard", (req, res) => {
+  leaderboardRound = req.body.round || question.round;
   showLeaderboard = true;
-  res.json({ status: "shown" });
+  res.json({ status: "shown", round: leaderboardRound });
 });
 
 app.post("/hide-leaderboard", (req, res) => {
   showLeaderboard = false;
+  leaderboardRound = null;
   res.json({ status: "hidden" });
 });
 
 /* ---------------- STUDENT VIEW ---------------- */
 
 app.get("/question", (req, res) => {
-  if (showLeaderboard) {
-    return res.json({ leaderboard: true });
+  if (showLeaderboard && leaderboardRound) {
+    return res.json({ leaderboard: true, round: leaderboardRound });
   }
 
   if (!question.startTime) {
@@ -70,12 +78,20 @@ app.get("/question", (req, res) => {
   });
 });
 
-/* ---------------- SUBMISSION (SECURE) ---------------- */
+/* ---------------- SUBMISSION (SECURE + TIMED + ID) ---------------- */
 
 app.post("/submit", (req, res) => {
   const { roll, answer } = req.body;
 
-  // 🔒 Validate teams
+  if (!question.startTime) {
+    return res.status(403).json({ error: "No active round" });
+  }
+
+  const elapsed = Math.floor((Date.now() - question.startTime) / 1000);
+  if (elapsed > question.duration) {
+    return res.status(403).json({ error: "Time is over" });
+  }
+
   if (!fs.existsSync("teams.json")) {
     return res.status(400).json({ error: "No teams registered" });
   }
@@ -87,23 +103,25 @@ app.post("/submit", (req, res) => {
     return res.status(400).json({ error: "Invalid Outlaw No" });
   }
 
-  const time = new Date().toLocaleTimeString("en-GB");
+  const submittedAt = Date.now();
 
   const entry = {
+    id: crypto.randomUUID(), // 🔥 STABLE UNIQUE ID
     roll,
     teamName: team.teamName,
     leader: team.leader,
     college: team.college,
     answer,
     round: question.round,
-    time,
+    submittedAt,
+    timeTaken: Math.floor((submittedAt - question.startTime) / 1000),
+    time: new Date(submittedAt).toLocaleTimeString("en-GB"),
     marks: null
   };
 
-  let data = [];
-  if (fs.existsSync("submissions.json")) {
-    data = JSON.parse(fs.readFileSync("submissions.json"));
-  }
+  const data = fs.existsSync("submissions.json")
+    ? JSON.parse(fs.readFileSync("submissions.json"))
+    : [];
 
   data.push(entry);
   fs.writeFileSync("submissions.json", JSON.stringify(data, null, 2));
@@ -119,26 +137,32 @@ app.get("/submissions", (req, res) => {
 });
 
 app.post("/update-marks", (req, res) => {
-  const { index, marks } = req.body;
+  const { id, marks } = req.body;
 
-  let data = JSON.parse(fs.readFileSync("submissions.json"));
-  if (!data[index]) {
-    return res.status(400).json({ error: "Invalid submission index" });
+  if (!fs.existsSync("submissions.json")) {
+    return res.status(400).json({ error: "No submissions" });
   }
 
-  data[index].marks = Number(marks);
-  fs.writeFileSync("submissions.json", JSON.stringify(data, null, 2));
+  const data = JSON.parse(fs.readFileSync("submissions.json"));
+  const submission = data.find(s => s.id === id);
 
+  if (!submission) {
+    return res.status(400).json({ error: "Submission not found" });
+  }
+
+  // ✅ ensure marks is a number
+  submission.marks = Number(marks);
+
+  fs.writeFileSync("submissions.json", JSON.stringify(data, null, 2));
   res.json({ status: "updated" });
 });
 
 /* ---------------- TEAM REGISTRY ---------------- */
 
 app.post("/register-team", (req, res) => {
-  let teams = [];
-  if (fs.existsSync("teams.json")) {
-    teams = JSON.parse(fs.readFileSync("teams.json"));
-  }
+  const teams = fs.existsSync("teams.json")
+    ? JSON.parse(fs.readFileSync("teams.json"))
+    : [];
 
   if (teams.find(t => t.outlawNo === req.body.outlawNo)) {
     return res.status(400).json({ error: "Outlaw No already exists" });
@@ -155,20 +179,26 @@ app.get("/teams", (req, res) => {
   res.json(JSON.parse(fs.readFileSync("teams.json")));
 });
 
-/* ---------------- LEADERBOARD ---------------- */
+/* ---------------- ROUND-WISE LEADERBOARD ---------------- */
 
-app.get("/leaderboard", (req, res) => {
+app.get("/leaderboard/:round", (req, res) => {
+  const round = req.params.round;
+
   if (!fs.existsSync("submissions.json")) return res.json([]);
 
   const submissions = JSON.parse(fs.readFileSync("submissions.json"))
-    .filter(s => s.marks !== null)
-    .sort((a, b) => b.marks - a.marks);
+    .filter(s => s.round === round && s.marks !== null)
+    .sort((a, b) => {
+      if (b.marks !== a.marks) return b.marks - a.marks;
+      return a.submittedAt - b.submittedAt; // ⏱ tie-break
+    });
 
   res.json(submissions.map(s => ({
     teamName: s.teamName,
     leader: s.leader,
     college: s.college,
-    marks: s.marks
+    marks: s.marks,
+    timeTaken: s.timeTaken
   })));
 });
 

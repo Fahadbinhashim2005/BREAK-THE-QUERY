@@ -41,13 +41,8 @@
       background: linear-gradient(#c18b3c, #7a4a1f);
     }
 
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
 
     table {
       width: 100%;
@@ -63,9 +58,7 @@
       text-align: center;
     }
 
-    th {
-      background: #d6a85a;
-    }
+    th { background: #d6a85a; }
 
     label {
       font-weight: bold;
@@ -84,10 +77,7 @@
       font-family: "Courier New", monospace;
     }
 
-    textarea {
-      resize: none;
-      min-height: 90px;
-    }
+    textarea { resize: none; min-height: 90px; }
 
     .danger {
       background: linear-gradient(#7a0c0c, #4a0505);
@@ -97,7 +87,6 @@
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
   <img src="nklogo.png">
   <img src="SAINTGITS LOGO .png">
@@ -109,9 +98,9 @@
 
   <!-- TABS -->
   <div class="tabs">
-    <button class="active" onclick="openTab('round')">🎯 Round Control</button>
-    <button onclick="openTab('leaderboard')">🏆 Leaderboard</button>
-    <button onclick="openTab('teams')">👥 Teams</button>
+    <button class="active" onclick="openTab('round', this)">🎯 Round Control</button>
+    <button onclick="openTab('leaderboard', this)">🏆 Leaderboard</button>
+    <button onclick="openTab('teams', this)">👥 Teams</button>
   </div>
 
   <!-- ROUND CONTROL -->
@@ -137,7 +126,13 @@
 
   <!-- LEADERBOARD -->
   <div id="leaderboard" class="tab-content">
-    <button onclick="showLeaderboard()">📢 Show Leaderboard to Participants</button>
+    <label>📊 Select Round</label>
+    <select id="lbRound" onchange="loadLeaderboard()">
+      <option value="round1">Round 1</option>
+      <option value="round2">Round 2</option>
+    </select>
+
+    <button onclick="showLeaderboard()">📢 Show to Participants</button>
     <button class="danger" onclick="hideLeaderboard()">❌ Hide Leaderboard</button>
 
     <table>
@@ -145,9 +140,10 @@
         <tr>
           <th>Rank</th>
           <th>Gang Name</th>
-          <th>Outlaw Leader</th>
+          <th>Leader</th>
           <th>College</th>
           <th>Marks</th>
+          <th>Time (s)</th>
         </tr>
       </thead>
       <tbody id="leaderboardBody"></tbody>
@@ -156,9 +152,6 @@
 
   <!-- TEAMS -->
   <div id="teams" class="tab-content">
-
-    <h3 style="text-align:center;">📝 Register New Gang</h3>
-
     <label>Outlaw No</label>
     <input id="regOutlaw">
 
@@ -172,10 +165,6 @@
     <input id="regCollege">
 
     <button onclick="registerTeam()">📌 Register Gang</button>
-
-    <hr style="margin:30px 0; border-color:#7a4a1f;">
-
-    <h3 style="text-align:center;">📋 Registered Gangs</h3>
 
     <table>
       <thead>
@@ -192,23 +181,27 @@
 </div>
 
 <script>
-function openTab(id) {
+/* ================= TAB CONTROL ================= */
+function openTab(id, btn) {
   document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
   document.getElementById(id).classList.add("active");
-  event.target.classList.add("active");
+  btn.classList.add("active");
+
+  if (id === "leaderboard") loadLeaderboard();
+  if (id === "teams") loadTeams();
 }
 
-/* ---------- ROUND ---------- */
+/* ================= ROUND ================= */
 function startRound() {
   fetch("/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text: q.value,
-      schema: schema.value,
-      duration: Number(time.value),
-      round: roundType.value
+      text: document.getElementById("q").value,
+      schema: document.getElementById("schema").value,
+      duration: Number(document.getElementById("time").value),
+      round: document.getElementById("roundType").value
     })
   }).then(() => alert("✅ Round Started"));
 }
@@ -219,9 +212,13 @@ function clearSubmissions() {
     .then(() => alert("✅ Submissions Cleared"));
 }
 
-/* ---------- LEADERBOARD ---------- */
+/* ================= LEADERBOARD ================= */
 function showLeaderboard() {
-  fetch("/show-leaderboard", { method: "POST" });
+  fetch("/show-leaderboard", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ round: document.getElementById("lbRound").value })
+  });
 }
 
 function hideLeaderboard() {
@@ -229,24 +226,27 @@ function hideLeaderboard() {
 }
 
 function loadLeaderboard() {
-  fetch("/leaderboard")
+  const round = document.getElementById("lbRound").value;
+  fetch(`/leaderboard/${round}`)
     .then(r => r.json())
     .then(data => {
-      leaderboardBody.innerHTML = "";
+      const body = document.getElementById("leaderboardBody");
+      body.innerHTML = "";
       data.forEach((t, i) => {
-        leaderboardBody.innerHTML += `
+        body.innerHTML += `
           <tr>
             <td>${i + 1}</td>
             <td>${t.teamName}</td>
             <td>${t.leader}</td>
             <td>${t.college}</td>
             <td>${t.marks}</td>
+            <td>${t.timeTaken}</td>
           </tr>`;
       });
     });
 }
 
-/* ---------- TEAMS ---------- */
+/* ================= TEAMS ================= */
 function registerTeam() {
   fetch("/register-team", {
     method: "POST",
@@ -259,10 +259,7 @@ function registerTeam() {
     })
   }).then(() => {
     alert("✅ Gang Registered");
-    regOutlaw.value = "";
-    regTeam.value = "";
-    regLeader.value = "";
-    regCollege.value = "";
+    regOutlaw.value = regTeam.value = regLeader.value = regCollege.value = "";
     loadTeams();
   });
 }
@@ -284,9 +281,11 @@ function loadTeams() {
     });
 }
 
+/* ================= AUTO REFRESH ================= */
 setInterval(() => {
-  loadLeaderboard();
-  loadTeams();
+  if (document.getElementById("leaderboard").classList.contains("active")) {
+    loadLeaderboard();
+  }
 }, 2000);
 </script>
 

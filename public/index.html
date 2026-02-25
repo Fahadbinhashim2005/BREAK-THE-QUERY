@@ -13,7 +13,7 @@
 </div>
 
 <div class="hero" id="mainView">
-  <div class="container">
+  <div class="container" id="gameContainer">
 
     <h1>BREAK THE QUERY</h1>
     <p class="subtitle">NAKSHATRA 26 · WILD WEST SQL SHOWDOWN</p>
@@ -34,7 +34,7 @@
       <p>Stand by, outlaw…</p>
     </div>
 
-    <!-- SCHEMA / FAULTY QUERY -->
+    <!-- SCHEMA -->
     <div id="schemaCard" class="card">
       <div class="card-title">🗂 Town Records</div>
       <pre>—</pre>
@@ -59,31 +59,36 @@
 </div>
 
 <script>
+let leaderboardInterval = null;
+let currentLeaderboardRound = null;
+
 /* ================= LEADERBOARD RENDER ================= */
 
-function renderLeaderboard(list) {
-  let rows = list.map((s, i) => `
+function renderLeaderboard(list, round) {
+  const rows = list.map((s, i) => `
     <tr>
       <td>${i + 1}</td>
       <td>${s.teamName}</td>
       <td>${s.leader}</td>
       <td>${s.college}</td>
       <td>${s.marks}</td>
+      <td>${s.timeTaken}s</td>
     </tr>
   `).join("");
 
   document.getElementById("mainView").innerHTML = `
     <div class="container leaderboard">
-      <h1>🏆 LEADERBOARD</h1>
-      <p class="subtitle">Top Gangs of the Wild West</p>
+      <h1>🏆 ${round.toUpperCase()} LEADERBOARD</h1>
+      <p class="subtitle">Marks first · Faster Outlaws win ties</p>
 
       <table>
         <tr>
           <th>Rank</th>
           <th>Gang Name</th>
-          <th>Outlaw Leader</th>
+          <th>Leader</th>
           <th>College</th>
           <th>Marks</th>
+          <th>Time</th>
         </tr>
         ${rows}
       </table>
@@ -91,7 +96,29 @@ function renderLeaderboard(list) {
   `;
 }
 
-/* ================= QUESTION / LEADERBOARD SWITCH ================= */
+/* ================= MAIN POLLING ================= */
+
+function startLeaderboard(round) {
+  if (leaderboardInterval) clearInterval(leaderboardInterval);
+
+  fetch(`/leaderboard/${round}`)
+    .then(res => res.json())
+    .then(list => renderLeaderboard(list, round));
+
+  leaderboardInterval = setInterval(() => {
+    fetch(`/leaderboard/${round}`)
+      .then(res => res.json())
+      .then(list => renderLeaderboard(list, round));
+  }, 2000);
+}
+
+function stopLeaderboard() {
+  if (leaderboardInterval) {
+    clearInterval(leaderboardInterval);
+    leaderboardInterval = null;
+    currentLeaderboardRound = null;
+  }
+}
 
 function loadQuestion() {
   fetch("/question")
@@ -99,19 +126,25 @@ function loadQuestion() {
     .then(data => {
 
       /* 🔥 LEADERBOARD MODE */
-      if (data.leaderboard) {
-        fetch("/leaderboard")
-          .then(res => res.json())
-          .then(renderLeaderboard);
+      if (data.leaderboard && data.round) {
+        if (currentLeaderboardRound !== data.round) {
+          currentLeaderboardRound = data.round;
+          startLeaderboard(data.round);
+        }
         return;
       }
 
+      /* 🔁 Back to question mode */
+      stopLeaderboard();
+
       if (!data.active) return;
 
-      /* ---------- ROUND BADGE ---------- */
       const badge = document.getElementById("roundBadge");
       const answerLabel = document.getElementById("answerLabel");
       const answerBox = document.getElementById("answer");
+
+      badge.classList.remove("round1", "round2");
+      badge.classList.add(data.round);
 
       if (data.round === "round1") {
         badge.innerText = "🎯 ROUND 1 – WRITE THE QUERY";
@@ -123,37 +156,29 @@ function loadQuestion() {
         answerBox.placeholder = "Correct the errors in the given SQL query…";
       }
 
-      /* ---------- QUESTION ---------- */
       document.getElementById("questionCard").innerHTML = `
         <div class="card-title">📜 Wanted Task</div>
         <p>${data.text}</p>
       `;
 
-      /* ---------- SCHEMA ---------- */
       document.getElementById("schemaCard").innerHTML = `
         <div class="card-title">🗂 Town Records</div>
         <pre>${data.schema}</pre>
       `;
 
-      /* ---------- TIMER ---------- */
       const min = Math.floor(data.remaining / 60);
       const sec = data.remaining % 60;
 
       const timer = document.getElementById("timer");
-      timer.innerText = `⏱ Time Left: ${min}:${sec.toString().padStart(2,"0")}`;
+      timer.innerText = `⏱ Time Left: ${min}:${sec.toString().padStart(2, "0")}`;
 
       document.getElementById("submitBtn").disabled = data.remaining === 0;
-
-      if (data.remaining === 0) {
-        timer.innerText = "⛔ TIME’S UP, OUTLAW!";
-        timer.classList.add("time-over");
-      }
     });
 }
 
 setInterval(loadQuestion, 1000);
 
-/* ================= SUBMISSION (FIXED) ================= */
+/* ================= SUBMISSION ================= */
 
 function submitAnswer() {
   const roll = document.getElementById("roll").value.trim();

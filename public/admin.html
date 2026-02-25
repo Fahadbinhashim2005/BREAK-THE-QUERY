@@ -20,18 +20,6 @@
       box-shadow: 0 0 40px rgba(0,0,0,0.9);
     }
 
-    h1 {
-      text-align: center;
-      letter-spacing: 3px;
-      margin-bottom: 10px;
-    }
-
-    .subtitle {
-      text-align: center;
-      color: #d6a85a;
-      margin-bottom: 25px;
-    }
-
     table {
       width: 100%;
       border-collapse: collapse;
@@ -42,24 +30,24 @@
     th, td {
       border: 2px solid #7a4a1f;
       padding: 10px;
-      text-align: left;
       font-size: 14px;
+      text-align: center;
       vertical-align: top;
     }
 
     th {
       background: #d6a85a;
       text-transform: uppercase;
-      letter-spacing: 1px;
     }
 
     pre {
       white-space: pre-wrap;
       margin: 0;
       font-family: "Courier New", monospace;
+      text-align: left;
     }
 
-    input[type="number"] {
+    input[type="text"] {
       width: 70px;
       padding: 6px;
       border-radius: 6px;
@@ -69,33 +57,26 @@
     }
 
     .saved {
-      color: green;
-      font-weight: bold;
+      color: #2e8b57;
       font-size: 12px;
+      font-weight: bold;
+      margin-top: 4px;
     }
 
-    .round1 {
-      background: rgba(0, 128, 0, 0.08);
-      font-weight: bold;
-    }
-
-    .round2 {
-      background: rgba(180, 0, 0, 0.08);
-      font-weight: bold;
-    }
+    .round1 { background: rgba(0,128,0,0.1); font-weight: bold; }
+    .round2 { background: rgba(180,0,0,0.1); font-weight: bold; }
   </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
-  <img src="nklogo.png" alt="Nakshatra Logo">
-  <img src="./SAINTGITS LOGO .png" alt="Saintgits Logo">
+  <img src="nklogo.png">
+  <img src="SAINTGITS LOGO .png">
 </div>
 
 <div class="admin-container">
-  <h1>⚖️ Judge Panel</h1>
-  <p class="subtitle">Sheriff’s Watch · Break the Query</p>
+  <h1 style="text-align:center;">⚖️ Judge Panel</h1>
+  <p style="text-align:center; color:#d6a85a;">Sheriff’s Watch · Break the Query</p>
 
   <table>
     <thead>
@@ -113,9 +94,15 @@
 </div>
 
 <script>
-let markTimers = {};
+/* ================= STATE ================= */
+let editingId = null;
+let draftMarks = "";
 
+/* ================= LOAD SUBMISSIONS ================= */
 function loadSubmissions() {
+  // 🔒 DO NOT refresh table while judge is typing
+  if (editingId !== null) return;
+
   fetch("/submissions")
     .then(res => res.json())
     .then(data => {
@@ -134,12 +121,13 @@ function loadSubmissions() {
             <td>${item.time}</td>
             <td><pre>${item.answer}</pre></td>
             <td>
-              <input type="number"
-                     min="0"
-                     max="100"
+              <input type="text"
+                     placeholder="Marks"
                      value="${item.marks ?? ""}"
-                     oninput="queueSave(${index}, this)">
-              <div id="status-${index}" class="saved"></div>
+                     onfocus="startEdit('${item.id}', this)"
+                     oninput="draftMarks = this.value"
+                     onkeydown="handleKey(event, '${item.id}', this)">
+              <div id="status-${item.id}" class="saved"></div>
             </td>
           </tr>
         `;
@@ -147,35 +135,39 @@ function loadSubmissions() {
     });
 }
 
-/* 🔒 Debounced mark saving */
-function queueSave(index, input) {
-  let value = Number(input.value);
-
-  if (value < 0 || value > 100) {
-    alert("Marks must be between 0 and 100");
-    input.value = "";
-    return;
-  }
-
-  clearTimeout(markTimers[index]);
-  markTimers[index] = setTimeout(() => {
-    updateMarks(index, value);
-  }, 600);
+/* ================= START EDIT ================= */
+function startEdit(id, input) {
+  editingId = id;
+  draftMarks = input.value;
 }
 
-function updateMarks(index, marks) {
+/* ================= HANDLE KEYS ================= */
+function handleKey(event, id, input) {
+  // ✅ Allow backspace, delete, arrows, numbers
+  if (event.key !== "Enter") return;
+
+  // 🚨 ENTER = SAVE
+  event.preventDefault();
+
+  const marks = input.value.trim();
+  if (marks === "") return;
+
   fetch("/update-marks", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ index, marks })
+    body: JSON.stringify({ id, marks })
   }).then(() => {
-    document.getElementById(`status-${index}`).innerText = "Saved ✓";
+    document.getElementById(`status-${id}`).innerText = "Saved ✓";
     setTimeout(() => {
-      document.getElementById(`status-${index}`).innerText = "";
-    }, 1500);
+      document.getElementById(`status-${id}`).innerText = "";
+    }, 2000);
+
+    editingId = null;
+    draftMarks = "";
   });
 }
 
+/* ================= AUTO REFRESH ================= */
 setInterval(loadSubmissions, 1500);
 loadSubmissions();
 </script>
