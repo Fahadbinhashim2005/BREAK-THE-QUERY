@@ -59,7 +59,15 @@
       font-family: "Courier New", monospace;
     }
 
-    /* Round highlighting */
+    input[type="number"] {
+      width: 70px;
+      padding: 6px;
+      border-radius: 6px;
+      border: 2px solid #7a4a1f;
+      font-weight: bold;
+      text-align: center;
+    }
+
     .round1 {
       background: rgba(0, 128, 0, 0.08);
       font-weight: bold;
@@ -73,7 +81,7 @@
 </head>
 <body>
 
-<!-- TRANSPARENT OVERLAY HEADER -->
+<!-- TRANSPARENT HEADER -->
 <div class="header">
   <img src="nklogo.png" alt="Nakshatra Logo">
   <img src="./SAINTGITS LOGO .png" alt="Saintgits Logo">
@@ -91,6 +99,7 @@
         <th>Round</th>
         <th>Time</th>
         <th>SQL Query</th>
+        <th>Marks</th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -116,10 +125,26 @@ function loadSubmissions() {
             <td class="${roundClass}">${roundText}</td>
             <td>${item.time}</td>
             <td><pre>${item.answer}</pre></td>
+            <td>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value="${item.marks ?? ""}"
+                onchange="updateMarks(${index}, this.value)">
+            </td>
           </tr>
         `;
       });
     });
+}
+
+function updateMarks(index, marks) {
+  fetch("/update-marks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ index, marks })
+  });
 }
 
 setInterval(loadSubmissions, 1000);

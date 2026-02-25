@@ -1,14 +1,1 @@
-[
-  {
-    "roll": "123456",
-    "answer": "SELECT name, bounty\nFROM oulaws\nWHERE bounty > 5000\nORDER BY bounty DESC;",
-    "round": "round1",
-    "time": "10:02:18"
-  },
-  {
-    "roll": "123456",
-    "answer": "asdfghj\nasdfghjk\nasdf\nzxcvbn",
-    "round": "round2",
-    "time": "10:03:35"
-  }
-]
+[]

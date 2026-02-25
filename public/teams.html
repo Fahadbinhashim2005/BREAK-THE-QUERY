@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Registered Gangs | Break the Query</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: radial-gradient(circle at top, #2b1a0f, #000);
+      color: #f3e6c8;
+      font-family: Georgia, serif;
+    }
+
+    .teams-container {
+      max-width: 1200px;
+      margin: 80px auto;
+      background: #120c07;
+      border: 4px solid #7a4a1f;
+      border-radius: 14px;
+      padding: 25px;
+      box-shadow: 0 0 40px rgba(0,0,0,0.9);
+    }
+
+    h1 {
+      text-align: center;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #d6a85a;
+      margin-bottom: 25px;
+      letter-spacing: 1px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #f3e6c8;
+      color: #2b1a0f;
+    }
+
+    th, td {
+      border: 2px solid #7a4a1f;
+      padding: 12px;
+      text-align: center;
+      font-size: 15px;
+    }
+
+    th {
+      background: #d6a85a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- TRANSPARENT HEADER -->
+<div class="header">
+  <img src="nklogo.png" alt="Nakshatra Logo">
+  <img src="SAINTGITS LOGO .png" alt="Saintgits Logo">
+</div>
+
+<div class="teams-container">
+  <h1>👥 Registered Gangs</h1>
+  <p class="subtitle">Official Outlaw Registry · Break the Query</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Outlaw No</th>
+        <th>Gang Name</th>
+        <th>Outlaw Leader</th>
+        <th>College</th>
+      </tr>
+    </thead>
+    <tbody id="teamsBody"></tbody>
+  </table>
+</div>
+
+<script>
+function loadTeams() {
+  fetch("/teams")
+    .then(res => res.json())
+    .then(data => {
+      const body = document.getElementById("teamsBody");
+      body.innerHTML = "";
+
+      if (data.length === 0) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="4">No gangs registered yet</td>
+          </tr>
+        `;
+        return;
+      }
+
+      data.forEach(t => {
+        body.innerHTML += `
+          <tr>
+            <td>${t.outlawNo}</td>
+            <td>${t.teamName}</td>
+            <td>${t.leader}</td>
+            <td>${t.college}</td>
+          </tr>
+        `;
+      });
+    });
+}
+
+setInterval(loadTeams, 2000);
+loadTeams();
+</script>
+
+</body>
+</html>

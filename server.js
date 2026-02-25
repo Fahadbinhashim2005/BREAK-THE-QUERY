@@ -10,26 +10,50 @@ app.use(express.static("public"));
 let question = {
   text: "",
   schema: "",
-  duration: 300,      // seconds
+  duration: 300,
   startTime: null,
-  round: "round1"     // 🔥 NEW (round1 | round2)
+  round: "round1"
 };
 
-/* ---------------- ADMIN CONTROLS ---------------- */
+let showLeaderboard = false;
 
-// Start / update question
+/* ---------------- ADMIN / COORDINATOR ---------------- */
+
 app.post("/start", (req, res) => {
   question.text = req.body.text;
   question.schema = req.body.schema;
   question.duration = req.body.duration;
-  question.round = req.body.round || "round1";   // 🔥 NEW
+  question.round = req.body.round || "round1";
   question.startTime = Date.now();
 
+  showLeaderboard = false; // hide leaderboard when new round starts
   res.json({ status: "started" });
 });
 
-// Send question + remaining time to students
+app.post("/clear-submissions", (req, res) => {
+  fs.writeFileSync("submissions.json", JSON.stringify([], null, 2));
+  res.json({ status: "cleared" });
+});
+
+/* ---------------- LEADERBOARD CONTROLS ---------------- */
+
+app.post("/show-leaderboard", (req, res) => {
+  showLeaderboard = true;
+  res.json({ status: "shown" });
+});
+
+app.post("/hide-leaderboard", (req, res) => {
+  showLeaderboard = false;
+  res.json({ status: "hidden" });
+});
+
+/* ---------------- STUDENT VIEW ---------------- */
+
 app.get("/question", (req, res) => {
+  if (showLeaderboard) {
+    return res.json({ leaderboard: true });
+  }
+
   if (!question.startTime) {
     return res.json({ active: false });
   }
@@ -42,37 +66,21 @@ app.get("/question", (req, res) => {
     text: question.text,
     schema: question.schema,
     remaining,
-    round: question.round        // 🔥 NEW
+    round: question.round
   });
 });
 
-/* ---------------- CLEAR SUBMISSIONS (COORDINATOR) ---------------- */
-
-app.post("/clear-submissions", (req, res) => {
-  fs.writeFileSync("submissions.json", JSON.stringify([], null, 2));
-  res.json({ status: "cleared" });
-});
-
-/* ---------------- STUDENT SUBMISSION ---------------- */
+/* ---------------- SUBMISSION ---------------- */
 
 app.post("/submit", (req, res) => {
-  if (!question.startTime) {
-    return res.status(403).json({ error: "No active round" });
-  }
-
-  const elapsed = Math.floor((Date.now() - question.startTime) / 1000);
-  if (elapsed > question.duration) {
-    return res.status(403).json({ error: "Time over" });
-  }
-
   const time = new Date().toLocaleTimeString("en-GB");
 
-  // 🔥 NEW: attach round info to submission
   const entry = {
     roll: req.body.roll,
     answer: req.body.answer,
     round: question.round,
-    time
+    time,
+    marks: null
   };
 
   let data = [];
@@ -86,15 +94,77 @@ app.post("/submit", (req, res) => {
   res.json({ status: "submitted" });
 });
 
-/* ---------------- LIVE ADMIN VIEW ---------------- */
+/* ---------------- JUDGE / ADMIN ---------------- */
 
 app.get("/submissions", (req, res) => {
   if (!fs.existsSync("submissions.json")) return res.json([]);
   res.json(JSON.parse(fs.readFileSync("submissions.json")));
 });
 
-/* ---------------- SERVER START ---------------- */
+app.post("/update-marks", (req, res) => {
+  const { index, marks } = req.body;
+
+  let data = JSON.parse(fs.readFileSync("submissions.json"));
+  if (!data[index]) return res.status(400).json({ error: "Invalid index" });
+
+  data[index].marks = Number(marks);
+  fs.writeFileSync("submissions.json", JSON.stringify(data, null, 2));
+
+  res.json({ status: "updated" });
+});
+
+/* ---------------- TEAM REGISTRY ---------------- */
+
+app.post("/register-team", (req, res) => {
+  let teams = [];
+  if (fs.existsSync("teams.json")) {
+    teams = JSON.parse(fs.readFileSync("teams.json"));
+  }
+
+  if (teams.find(t => t.outlawNo === req.body.outlawNo)) {
+    return res.status(400).json({ error: "Outlaw No already exists" });
+  }
+
+  teams.push(req.body);
+  fs.writeFileSync("teams.json", JSON.stringify(teams, null, 2));
+
+  res.json({ status: "registered" });
+});
+
+app.get("/teams", (req, res) => {
+  if (!fs.existsSync("teams.json")) return res.json([]);
+  res.json(JSON.parse(fs.readFileSync("teams.json")));
+});
+
+/* ---------------- LEADERBOARD ---------------- */
+
+app.get("/leaderboard", (req, res) => {
+  if (!fs.existsSync("submissions.json")) return res.json([]);
+
+  const submissions = JSON.parse(fs.readFileSync("submissions.json"))
+    .filter(s => s.marks !== null)
+    .sort((a, b) => b.marks - a.marks);
+
+  let teams = [];
+  if (fs.existsSync("teams.json")) {
+    teams = JSON.parse(fs.readFileSync("teams.json"));
+  }
+
+  const leaderboard = submissions.map(s => {
+    const team = teams.find(t => t.outlawNo === s.roll) || {};
+    return {
+      teamName: team.teamName || "Unknown Gang",
+      leader: team.leader || "Unknown",
+      college: team.college || "Unknown",
+      marks: s.marks
+    };
+  });
+
+  res.json(leaderboard);
+});
+
+/* ---------------- SERVER ---------------- */
 
 app.listen(3000, "0.0.0.0", () => {
-  console.log("✅ Server running on all networks at port 3000");
+  console.log("✅ Server running on port 3000");
 });

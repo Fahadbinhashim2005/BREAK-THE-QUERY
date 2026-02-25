@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Coordinator Panel | Break the Query</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: radial-gradient(circle at top, #2b1a0f, #000);
+      font-family: Georgia, serif;
+      color: #f3e6c8;
+    }
+
+    .panel {
+      max-width: 1200px;
+      margin: 80px auto;
+      background: #120c07;
+      border: 4px solid #7a4a1f;
+      border-radius: 14px;
+      padding: 25px;
+      box-shadow: 0 0 40px rgba(0,0,0,0.9);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tabs button {
+      flex: 1;
+      padding: 12px;
+      font-weight: bold;
+      border-radius: 8px;
+      border: 2px solid #7a4a1f;
+      background: #2b1a0f;
+      color: #f3e6c8;
+      cursor: pointer;
+    }
+
+    .tabs button.active {
+      background: linear-gradient(#c18b3c, #7a4a1f);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #f3e6c8;
+      color: #2b1a0f;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 2px solid #7a4a1f;
+      padding: 10px;
+      text-align: center;
+    }
+
+    th {
+      background: #d6a85a;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 12px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: 2px solid #7a4a1f;
+      background: #fff7e1;
+      color: #2b1a0f;
+      font-family: "Courier New", monospace;
+    }
+
+    textarea {
+      resize: none;
+      min-height: 90px;
+    }
+
+    .danger {
+      background: linear-gradient(#7a0c0c, #4a0505);
+      border-color: #300;
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <img src="nklogo.png">
+  <img src="SAINTGITS LOGO .png">
+</div>
+
+<div class="panel">
+  <h1 style="text-align:center;">🎛 Coordinator Command Center</h1>
+  <p style="text-align:center; color:#d6a85a;">Nakshatra 26 · Break the Query</p>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="active" onclick="openTab('round')">🎯 Round Control</button>
+    <button onclick="openTab('leaderboard')">🏆 Leaderboard</button>
+    <button onclick="openTab('teams')">👥 Teams</button>
+  </div>
+
+  <!-- ROUND CONTROL -->
+  <div id="round" class="tab-content active">
+    <label>🎯 Round Type</label>
+    <select id="roundType">
+      <option value="round1">Round 1 – Write the Query</option>
+      <option value="round2">Round 2 – Break the Query</option>
+    </select>
+
+    <label>📜 Question</label>
+    <textarea id="q"></textarea>
+
+    <label>🗂 Schema / Faulty Query</label>
+    <textarea id="schema"></textarea>
+
+    <label>⏱ Duration (seconds)</label>
+    <input id="time" value="300">
+
+    <button onclick="startRound()">🚨 Start Round</button>
+    <button class="danger" onclick="clearSubmissions()">🧹 Clear Submissions</button>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="leaderboard" class="tab-content">
+    <button onclick="showLeaderboard()">📢 Show Leaderboard to Participants</button>
+    <button class="danger" onclick="hideLeaderboard()">❌ Hide Leaderboard</button>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Gang Name</th>
+          <th>Outlaw Leader</th>
+          <th>College</th>
+          <th>Marks</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboardBody"></tbody>
+    </table>
+  </div>
+
+  <!-- TEAMS -->
+  <div id="teams" class="tab-content">
+
+    <h3 style="text-align:center;">📝 Register New Gang</h3>
+
+    <label>Outlaw No</label>
+    <input id="regOutlaw">
+
+    <label>Gang Name</label>
+    <input id="regTeam">
+
+    <label>Outlaw Leader</label>
+    <input id="regLeader">
+
+    <label>College</label>
+    <input id="regCollege">
+
+    <button onclick="registerTeam()">📌 Register Gang</button>
+
+    <hr style="margin:30px 0; border-color:#7a4a1f;">
+
+    <h3 style="text-align:center;">📋 Registered Gangs</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Outlaw No</th>
+          <th>Gang Name</th>
+          <th>Leader</th>
+          <th>College</th>
+        </tr>
+      </thead>
+      <tbody id="teamsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function openTab(id) {
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  event.target.classList.add("active");
+}
+
+/* ---------- ROUND ---------- */
+function startRound() {
+  fetch("/start", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: q.value,
+      schema: schema.value,
+      duration: Number(time.value),
+      round: roundType.value
+    })
+  }).then(() => alert("✅ Round Started"));
+}
+
+function clearSubmissions() {
+  if (!confirm("Clear ALL submissions?")) return;
+  fetch("/clear-submissions", { method: "POST" })
+    .then(() => alert("✅ Submissions Cleared"));
+}
+
+/* ---------- LEADERBOARD ---------- */
+function showLeaderboard() {
+  fetch("/show-leaderboard", { method: "POST" });
+}
+
+function hideLeaderboard() {
+  fetch("/hide-leaderboard", { method: "POST" });
+}
+
+function loadLeaderboard() {
+  fetch("/leaderboard")
+    .then(r => r.json())
+    .then(data => {
+      leaderboardBody.innerHTML = "";
+      data.forEach((t, i) => {
+        leaderboardBody.innerHTML += `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${t.teamName}</td>
+            <td>${t.leader}</td>
+            <td>${t.college}</td>
+            <td>${t.marks}</td>
+          </tr>`;
+      });
+    });
+}
+
+/* ---------- TEAMS ---------- */
+function registerTeam() {
+  fetch("/register-team", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      outlawNo: regOutlaw.value,
+      teamName: regTeam.value,
+      leader: regLeader.value,
+      college: regCollege.value
+    })
+  }).then(() => {
+    alert("✅ Gang Registered");
+    regOutlaw.value = "";
+    regTeam.value = "";
+    regLeader.value = "";
+    regCollege.value = "";
+    loadTeams();
+  });
+}
+
+function loadTeams() {
+  fetch("/teams")
+    .then(r => r.json())
+    .then(data => {
+      teamsBody.innerHTML = "";
+      data.forEach(t => {
+        teamsBody.innerHTML += `
+          <tr>
+            <td>${t.outlawNo}</td>
+            <td>${t.teamName}</td>
+            <td>${t.leader}</td>
+            <td>${t.college}</td>
+          </tr>`;
+      });
+    });
+}
+
+setInterval(() => {
+  loadLeaderboard();
+  loadTeams();
+}, 2000);
+</script>
+
+</body>
+</html>

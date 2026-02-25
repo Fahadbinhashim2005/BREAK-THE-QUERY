@@ -12,13 +12,13 @@
   <img src="./SAINTGITS LOGO .png" alt="Saintgits Logo">
 </div>
 
-<div class="hero">
+<div class="hero" id="mainView">
   <div class="container">
 
     <h1>BREAK THE QUERY</h1>
     <p class="subtitle">NAKSHATRA 26 · WILD WEST SQL SHOWDOWN</p>
 
-    <!-- 🔥 ROUND BADGE (NEW) -->
+    <!-- ROUND BADGE -->
     <div id="roundBadge" class="timer">
       Waiting for round…
     </div>
@@ -59,10 +59,53 @@
 </div>
 
 <script>
+/* ================= LEADERBOARD RENDER ================= */
+
+function renderLeaderboard(list) {
+  let rows = list.map((s, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${s.teamName}</td>
+      <td>${s.leader}</td>
+      <td>${s.college}</td>
+      <td>${s.marks}</td>
+    </tr>
+  `).join("");
+
+  document.getElementById("mainView").innerHTML = `
+    <div class="container leaderboard">
+      <h1>🏆 LEADERBOARD</h1>
+      <p class="subtitle">Top Gangs of the Wild West</p>
+
+      <table>
+        <tr>
+          <th>Rank</th>
+          <th>Gang Name</th>
+          <th>Outlaw Leader</th>
+          <th>College</th>
+          <th>Marks</th>
+        </tr>
+        ${rows}
+      </table>
+    </div>
+  `;
+}
+
+/* ================= QUESTION / LEADERBOARD SWITCH ================= */
+
 function loadQuestion() {
   fetch("/question")
     .then(res => res.json())
     .then(data => {
+
+      /* 🔥 LEADERBOARD MODE */
+      if (data.leaderboard) {
+        fetch("/leaderboard")
+          .then(res => res.json())
+          .then(renderLeaderboard);
+        return;
+      }
+
       if (!data.active) return;
 
       /* ---------- ROUND BADGE ---------- */
@@ -74,14 +117,10 @@ function loadQuestion() {
         badge.innerText = "🎯 ROUND 1 – WRITE THE QUERY";
         answerLabel.innerText = "SQL Query";
         answerBox.placeholder = "Write your SQL query here…";
-      } 
-      else if (data.round === "round2") {
+      } else {
         badge.innerText = "⚠️ ROUND 2 – BREAK THE QUERY";
         answerLabel.innerText = "Corrected SQL Query";
         answerBox.placeholder = "Correct the errors in the given SQL query…";
-      } 
-      else {
-        badge.innerText = "Waiting for round…";
       }
 
       /* ---------- QUESTION ---------- */
@@ -114,7 +153,8 @@ function loadQuestion() {
 
 setInterval(loadQuestion, 1000);
 
-/* ---------- SUBMIT ---------- */
+/* ================= SUBMISSION ================= */
+
 function submitAnswer() {
   const roll = document.getElementById("roll").value.trim();
   const answer = document.getElementById("answer").value.trim();
@@ -129,13 +169,12 @@ function submitAnswer() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ roll, answer })
   }).then(() => {
-    document.body.innerHTML = `
-      <div class="hero">
-        <div class="container">
-          <h1>BOUNTY SUBMITTED</h1>
-          <p class="subtitle">Outlaw submission recorded successfully.</p>
-        </div>
-      </div>`;
+    document.getElementById("mainView").innerHTML = `
+      <div class="container">
+        <h1>BOUNTY SUBMITTED</h1>
+        <p class="subtitle">Outlaw submission recorded successfully.</p>
+      </div>
+    `;
   });
 }
 </script>
