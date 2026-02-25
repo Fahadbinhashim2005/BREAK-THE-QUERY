@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Break the Query | Nakshatra 26</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- TRANSPARENT OVERLAY HEADER -->
+<div class="header">
+  <img src="./nklogo.png" alt="Nakshatra Logo">
+  <img src="./SAINTGITS LOGO .png" alt="Saintgits Logo">
+</div>
+
+<div class="hero">
+  <div class="container">
+
+    <h1>BREAK THE QUERY</h1>
+    <p class="subtitle">NAKSHATRA 26 · WILD WEST SQL SHOWDOWN</p>
+
+    <!-- 🔥 ROUND BADGE (NEW) -->
+    <div id="roundBadge" class="timer">
+      Waiting for round…
+    </div>
+
+    <!-- TIMER -->
+    <div id="timer" class="timer">
+      Waiting for the Sheriff’s signal…
+    </div>
+
+    <!-- QUESTION -->
+    <div id="questionCard" class="card">
+      <div class="card-title">📜 Wanted Task</div>
+      <p>Stand by, outlaw…</p>
+    </div>
+
+    <!-- SCHEMA / FAULTY QUERY -->
+    <div id="schemaCard" class="card">
+      <div class="card-title">🗂 Town Records</div>
+      <pre>—</pre>
+    </div>
+
+    <!-- ANSWER INPUT -->
+    <div class="card">
+      <div class="card-title">✍️ Submit Your Query</div>
+
+      <label>Outlaw No</label>
+      <input id="roll" placeholder="Enter your outlaw number">
+
+      <label id="answerLabel">SQL Query</label>
+      <textarea id="answer" placeholder="Write your SQL query here…"></textarea>
+
+      <button id="submitBtn" onclick="submitAnswer()" disabled>
+        💰 Claim Your Bounty 💰
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function loadQuestion() {
+  fetch("/question")
+    .then(res => res.json())
+    .then(data => {
+      if (!data.active) return;
+
+      /* ---------- ROUND BADGE ---------- */
+      const badge = document.getElementById("roundBadge");
+      const answerLabel = document.getElementById("answerLabel");
+      const answerBox = document.getElementById("answer");
+
+      if (data.round === "round1") {
+        badge.innerText = "🎯 ROUND 1 – WRITE THE QUERY";
+        answerLabel.innerText = "SQL Query";
+        answerBox.placeholder = "Write your SQL query here…";
+      } 
+      else if (data.round === "round2") {
+        badge.innerText = "⚠️ ROUND 2 – BREAK THE QUERY";
+        answerLabel.innerText = "Corrected SQL Query";
+        answerBox.placeholder = "Correct the errors in the given SQL query…";
+      } 
+      else {
+        badge.innerText = "Waiting for round…";
+      }
+
+      /* ---------- QUESTION ---------- */
+      document.getElementById("questionCard").innerHTML = `
+        <div class="card-title">📜 Wanted Task</div>
+        <p>${data.text}</p>
+      `;
+
+      /* ---------- SCHEMA ---------- */
+      document.getElementById("schemaCard").innerHTML = `
+        <div class="card-title">🗂 Town Records</div>
+        <pre>${data.schema}</pre>
+      `;
+
+      /* ---------- TIMER ---------- */
+      const min = Math.floor(data.remaining / 60);
+      const sec = data.remaining % 60;
+
+      const timer = document.getElementById("timer");
+      timer.innerText = `⏱ Time Left: ${min}:${sec.toString().padStart(2,"0")}`;
+
+      document.getElementById("submitBtn").disabled = data.remaining === 0;
+
+      if (data.remaining === 0) {
+        timer.innerText = "⛔ TIME’S UP, OUTLAW!";
+        timer.classList.add("time-over");
+      }
+    });
+}
+
+setInterval(loadQuestion, 1000);
+
+/* ---------- SUBMIT ---------- */
+function submitAnswer() {
+  const roll = document.getElementById("roll").value.trim();
+  const answer = document.getElementById("answer").value.trim();
+
+  if (!roll || !answer) {
+    alert("Fill all fields, outlaw.");
+    return;
+  }
+
+  fetch("/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ roll, answer })
+  }).then(() => {
+    document.body.innerHTML = `
+      <div class="hero">
+        <div class="container">
+          <h1>BOUNTY SUBMITTED</h1>
+          <p class="subtitle">Outlaw submission recorded successfully.</p>
+        </div>
+      </div>`;
+  });
+}
+</script>
+
+</body>
+</html>

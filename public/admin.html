@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Submissions | Break the Query</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: radial-gradient(circle at top, #2b1a0f, #000);
+      color: #f3e6c8;
+      font-family: Georgia, serif;
+    }
+
+    .admin-container {
+      max-width: 1200px;
+      margin: 40px auto;
+      background: #120c07;
+      border: 4px solid #7a4a1f;
+      border-radius: 14px;
+      padding: 25px;
+      box-shadow: 0 0 40px rgba(0,0,0,0.9);
+    }
+
+    h1 {
+      text-align: center;
+      letter-spacing: 3px;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #d6a85a;
+      margin-bottom: 25px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #f3e6c8;
+      color: #2b1a0f;
+    }
+
+    th, td {
+      border: 2px solid #7a4a1f;
+      padding: 10px;
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #d6a85a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      margin: 0;
+      font-family: "Courier New", monospace;
+    }
+
+    /* Round highlighting */
+    .round1 {
+      background: rgba(0, 128, 0, 0.08);
+      font-weight: bold;
+    }
+
+    .round2 {
+      background: rgba(180, 0, 0, 0.08);
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<!-- TRANSPARENT OVERLAY HEADER -->
+<div class="header">
+  <img src="nklogo.png" alt="Nakshatra Logo">
+  <img src="./SAINTGITS LOGO .png" alt="Saintgits Logo">
+</div>
+
+<div class="admin-container">
+  <h1>Live Submissions</h1>
+  <p class="subtitle">Sheriff’s Watch · Break the Query</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Outlaw No</th>
+        <th>Round</th>
+        <th>Time</th>
+        <th>SQL Query</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<script>
+function loadSubmissions() {
+  fetch("/submissions")
+    .then(res => res.json())
+    .then(data => {
+      const body = document.getElementById("tableBody");
+      body.innerHTML = "";
+
+      data.forEach((item, index) => {
+        const roundText = item.round === "round2" ? "Round 2" : "Round 1";
+        const roundClass = item.round === "round2" ? "round2" : "round1";
+
+        body.innerHTML += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${item.roll}</td>
+            <td class="${roundClass}">${roundText}</td>
+            <td>${item.time}</td>
+            <td><pre>${item.answer}</pre></td>
+          </tr>
+        `;
+      });
+    });
+}
+
+setInterval(loadSubmissions, 1000);
+loadSubmissions();
+</script>
+
+</body>
+</html>
