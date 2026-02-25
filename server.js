@@ -26,7 +26,7 @@ app.post("/start", (req, res) => {
   question.round = req.body.round || "round1";
   question.startTime = Date.now();
 
-  showLeaderboard = false; // hide leaderboard when new round starts
+  showLeaderboard = false;
   res.json({ status: "started" });
 });
 
@@ -70,14 +70,31 @@ app.get("/question", (req, res) => {
   });
 });
 
-/* ---------------- SUBMISSION ---------------- */
+/* ---------------- SUBMISSION (SECURE) ---------------- */
 
 app.post("/submit", (req, res) => {
+  const { roll, answer } = req.body;
+
+  // 🔒 Validate teams
+  if (!fs.existsSync("teams.json")) {
+    return res.status(400).json({ error: "No teams registered" });
+  }
+
+  const teams = JSON.parse(fs.readFileSync("teams.json"));
+  const team = teams.find(t => t.outlawNo === roll);
+
+  if (!team) {
+    return res.status(400).json({ error: "Invalid Outlaw No" });
+  }
+
   const time = new Date().toLocaleTimeString("en-GB");
 
   const entry = {
-    roll: req.body.roll,
-    answer: req.body.answer,
+    roll,
+    teamName: team.teamName,
+    leader: team.leader,
+    college: team.college,
+    answer,
     round: question.round,
     time,
     marks: null
@@ -105,7 +122,9 @@ app.post("/update-marks", (req, res) => {
   const { index, marks } = req.body;
 
   let data = JSON.parse(fs.readFileSync("submissions.json"));
-  if (!data[index]) return res.status(400).json({ error: "Invalid index" });
+  if (!data[index]) {
+    return res.status(400).json({ error: "Invalid submission index" });
+  }
 
   data[index].marks = Number(marks);
   fs.writeFileSync("submissions.json", JSON.stringify(data, null, 2));
@@ -145,22 +164,12 @@ app.get("/leaderboard", (req, res) => {
     .filter(s => s.marks !== null)
     .sort((a, b) => b.marks - a.marks);
 
-  let teams = [];
-  if (fs.existsSync("teams.json")) {
-    teams = JSON.parse(fs.readFileSync("teams.json"));
-  }
-
-  const leaderboard = submissions.map(s => {
-    const team = teams.find(t => t.outlawNo === s.roll) || {};
-    return {
-      teamName: team.teamName || "Unknown Gang",
-      leader: team.leader || "Unknown",
-      college: team.college || "Unknown",
-      marks: s.marks
-    };
-  });
-
-  res.json(leaderboard);
+  res.json(submissions.map(s => ({
+    teamName: s.teamName,
+    leader: s.leader,
+    college: s.college,
+    marks: s.marks
+  })));
 });
 
 /* ---------------- SERVER ---------------- */

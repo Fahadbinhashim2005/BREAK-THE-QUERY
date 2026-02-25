@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Live Submissions | Break the Query</title>
+  <title>Judge Panel | Break the Query</title>
   <link rel="stylesheet" href="style.css">
   <style>
     body {
@@ -68,6 +68,12 @@
       text-align: center;
     }
 
+    .saved {
+      color: green;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
     .round1 {
       background: rgba(0, 128, 0, 0.08);
       font-weight: bold;
@@ -81,14 +87,14 @@
 </head>
 <body>
 
-<!-- TRANSPARENT HEADER -->
+<!-- HEADER -->
 <div class="header">
   <img src="nklogo.png" alt="Nakshatra Logo">
   <img src="./SAINTGITS LOGO .png" alt="Saintgits Logo">
 </div>
 
 <div class="admin-container">
-  <h1>Live Submissions</h1>
+  <h1>⚖️ Judge Panel</h1>
   <p class="subtitle">Sheriff’s Watch · Break the Query</p>
 
   <table>
@@ -107,6 +113,8 @@
 </div>
 
 <script>
+let markTimers = {};
+
 function loadSubmissions() {
   fetch("/submissions")
     .then(res => res.json())
@@ -126,12 +134,12 @@ function loadSubmissions() {
             <td>${item.time}</td>
             <td><pre>${item.answer}</pre></td>
             <td>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value="${item.marks ?? ""}"
-                onchange="updateMarks(${index}, this.value)">
+              <input type="number"
+                     min="0"
+                     max="100"
+                     value="${item.marks ?? ""}"
+                     oninput="queueSave(${index}, this)">
+              <div id="status-${index}" class="saved"></div>
             </td>
           </tr>
         `;
@@ -139,15 +147,36 @@ function loadSubmissions() {
     });
 }
 
+/* 🔒 Debounced mark saving */
+function queueSave(index, input) {
+  let value = Number(input.value);
+
+  if (value < 0 || value > 100) {
+    alert("Marks must be between 0 and 100");
+    input.value = "";
+    return;
+  }
+
+  clearTimeout(markTimers[index]);
+  markTimers[index] = setTimeout(() => {
+    updateMarks(index, value);
+  }, 600);
+}
+
 function updateMarks(index, marks) {
   fetch("/update-marks", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ index, marks })
+  }).then(() => {
+    document.getElementById(`status-${index}`).innerText = "Saved ✓";
+    setTimeout(() => {
+      document.getElementById(`status-${index}`).innerText = "";
+    }, 1500);
   });
 }
 
-setInterval(loadSubmissions, 1000);
+setInterval(loadSubmissions, 1500);
 loadSubmissions();
 </script>
 
